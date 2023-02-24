@@ -19,6 +19,9 @@ import (
 // same time too.
 var Screen tcell.Screen
 
+//
+var *AutocompletionBox autocompletionbox
+
 // Events is the channel of tcell events
 var Events chan (tcell.Event)
 

@@ -241,6 +241,8 @@ type BufPane struct {
 	// since we may not know the window geometry yet. In such case we finish
 	// its initialization a bit later, after the initial resize.
 	initialized bool
+
+	autocompletionBox *AutocompletionBox
 }
 
 func newBufPane(buf *buffer.Buffer, win display.BWindow, tab *Tab) *BufPane {
@@ -248,7 +250,7 @@ func newBufPane(buf *buffer.Buffer, win display.BWindow, tab *Tab) *BufPane {
 	h.Buf = buf
 	h.BWindow = win
 	h.tab = tab
-
+	h.autocompletionBox = new AutocompletionBox()
 	h.Cursor = h.Buf.GetActiveCursor()
 	h.mouseReleased = true
 

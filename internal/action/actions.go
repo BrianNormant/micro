@@ -9,12 +9,12 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"encoding/json"
 
 	shellquote "github.com/kballard/go-shellquote"
 	"github.com/zyedidia/micro/v2/internal/buffer"
 	"github.com/zyedidia/micro/v2/internal/clipboard"
 	"github.com/zyedidia/micro/v2/internal/config"
-	"github.com/zyedidia/micro/v2/internal/display"
 	"github.com/zyedidia/micro/v2/internal/screen"
 	"github.com/zyedidia/micro/v2/internal/shell"
 	"github.com/zyedidia/micro/v2/internal/util"
@@ -1874,5 +1874,29 @@ func (h *BufPane) RemoveAllMultiCursors() bool {
 
 // None is an action that does nothing
 func (h *BufPane) None() bool {
+	return true
+}
+
+func (v *BufPane) GotoFile() bool {
+	autocomplete.Open(func(v *BufPane) (messages Messages) {
+		files := util.GetFilesInCurrentDir()
+		for _, file := range files {
+			b, _ := json.Marshal(file)
+			message := Message{Searchable: file.Name, MessageToDisplay: fmt.Sprintf("%s (%s)", file.Name, file.Path), Value2: b}
+			messages = append(messages, message)
+		}
+		return messages
+	}, func(message Message) {
+		var f File
+		json.Unmarshal(message.Value2, &f)
+		v.Buf.Save()
+		v.Open(f.Path)
+		// Move cursor and view if possible.
+		if message.Extra.line+1 < v.Buf.NumLines && message.Extra.line-1 >= 0 {
+			v.Cursor.Y = message.Extra.line - 1
+			v.Relocate()
+		}
+	}, nil, v)
+
 	return true
 }
