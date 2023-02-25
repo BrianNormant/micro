@@ -5,7 +5,8 @@ import (
 	"time"
 
 	luar "layeh.com/gopher-luar"
-
+	"reflect"
+	"runtime"
 	lua "github.com/yuin/gopher-lua"
 	"github.com/zyedidia/micro/v2/internal/buffer"
 	"github.com/zyedidia/micro/v2/internal/clipboard"
@@ -250,7 +251,7 @@ func newBufPane(buf *buffer.Buffer, win display.BWindow, tab *Tab) *BufPane {
 	h.Buf = buf
 	h.BWindow = win
 	h.tab = tab
-	h.autocompletionBox = new AutocompletionBox()
+	h.autocompletionBox = new(AutocompletionBox)
 	h.Cursor = h.Buf.GetActiveCursor()
 	h.mouseReleased = true
 
@@ -413,6 +414,8 @@ func (h *BufPane) HandleEvent(event tcell.Event) {
 
 	}
 
+	h.handleCompletionBox(event)
+
 	switch e := event.(type) {
 	case *tcell.EventRaw:
 		re := RawEvent{
@@ -498,6 +501,121 @@ func (h *BufPane) HandleEvent(event tcell.Event) {
 		}
 	}
 }
+
+func (v *BufPane) handleCompletionBox(event tcell.Event) (swallow bool) {
+	var a = v.autocompletionBox
+	switch e := event.(type) {
+	case *tcell.EventKey:
+		switch e.Key() {
+		case tcell.KeyEnter:
+				if a.AcceptEnter != nil {
+				if len(a.messagesToshow) > a.selected && len(a.messagesToshow) > 0 {
+					message := a.messagesToshow[a.selected]
+					message.Extra = a.Extra
+					a.AcceptEnter(message)
+				}
+				a.Reset()
+			}
+			return true
+		case tcell.KeyTAB:
+			if a.AcceptTab != nil {
+				if len(a.messagesToshow) > a.selected {
+					message := a.messagesToshow[a.selected]
+					message.Extra = a.Extra
+					a.AcceptEnter(message)
+				}
+				a.Reset()
+			}
+			return true
+		case tcell.KeyESC:
+			a.Reset()
+			return true
+		case tcell.KeyUp:
+			if a.selected > 0 {
+				a.selected--
+			}
+			return true
+		case tcell.KeyDown:
+			if len(a.messagesToshow)-1 > a.selected {
+				a.selected++
+			}
+			return true
+		}
+	}
+	if !a.showPrompt {
+		return false
+	}
+	switch e := event.(type) {
+	case *tcell.EventKey:
+		if e.Key() != tcell.KeyRune || e.Modifiers() != 0 {
+			for key, actions := range v.Bindings() {
+				if e.Key() == key.keyCode {
+					if e.Key() == tcell.KeyRune {
+						if e.Rune() != key.r {
+							continue
+						}
+					}
+					if e.Modifiers() == key.modifiers {
+						for _, action := range actions {
+							funcName := FuncName(action)
+							switch funcName {
+							case "main.(*BufPane).CursorLeft":
+								if a.cursorx > 0 {
+									a.cursorx--
+								}
+							case "main.(*BufPane).CursorRight":
+								if a.cursorx < len(a.response) {
+									a.cursorx++
+								}
+							case "main.(*BufPane).CursorStart", "main.(*BufPane).StartOfLine":
+								a.cursorx = 0
+							case "main.(*BufPane).CursorEnd", "main.(*BufPane).EndOfLine":
+								a.cursorx = len(a.response)
+							case "main.(*BufPane).Backspace":
+								if a.cursorx > 0 {
+									a.response = string([]rune(a.response)[:a.cursorx-1]) + string([]rune(a.response)[a.cursorx:])
+									a.cursorx--
+								}
+							case "main.(*BufPane).Paste":
+								// TODO I need to get familliar with the clipboard
+								// clip, _ := clipboard.Read("clipboard")
+								// v.Buf.Insert(a.response, a.cursorx, clip)
+								// a.cursorx += len(clip)
+							}
+						}
+					}
+				}
+			}
+		}
+		switch e.Key() {
+		case tcell.KeyRune:
+			a.response = Insert(a.response, a.cursorx, string(e.Rune()))
+			a.cursorx++
+		}
+
+	case *tcell.EventPaste:
+		clip := e.Text()
+		a.response = Insert(a.response, a.cursorx, clip)
+		a.cursorx += Count(clip)
+	case *tcell.EventMouse:
+		x, y := e.Position()
+		button := e.Buttons()
+		if y == cursorGY {
+			switch button {
+			case tcell.Button1:
+				a.cursorx = x
+				if a.cursorx < 0 {
+					a.cursorx = 0
+				} else if a.cursorx > Count(a.response) {
+					a.cursorx = Count(a.response)
+				}
+			}
+		}
+	}
+	a.filterAutocomplete()
+	return true
+}
+
 
 // Bindings returns the current bindings tree for this buffer.
 func (h *BufPane) Bindings() *KeyTree {

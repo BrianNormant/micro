@@ -18,6 +18,7 @@ import (
 	"github.com/zyedidia/micro/v2/internal/screen"
 	"github.com/zyedidia/micro/v2/internal/shell"
 	"github.com/zyedidia/micro/v2/internal/util"
+	"github.com/zyedidia/micro/v2/internal/display"
 	"github.com/zyedidia/tcell/v2"
 )
 
@@ -1878,7 +1879,7 @@ func (h *BufPane) None() bool {
 }
 
 func (v *BufPane) GotoFile() bool {
-	autocomplete.Open(func(v *BufPane) (messages Messages) {
+	v.autocompletionBox.Open(func(v *BufPane) (messages Messages) {
 		files := util.GetFilesInCurrentDir()
 		for _, file := range files {
 			b, _ := json.Marshal(file)
@@ -1887,10 +1888,10 @@ func (v *BufPane) GotoFile() bool {
 		}
 		return messages
 	}, func(message Message) {
-		var f File
+		var f util.File
 		json.Unmarshal(message.Value2, &f)
 		v.Buf.Save()
-		v.Open(f.Path)
+		//Open(f.Path)
 		// Move cursor and view if possible.
 		if message.Extra.line+1 < v.Buf.NumLines && message.Extra.line-1 >= 0 {
 			v.Cursor.Y = message.Extra.line - 1

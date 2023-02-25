@@ -7,16 +7,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/user"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
-	"os"
-	"path/filepath"
 	"unicode"
-	"github.com/zyedidia/micro/v2/internal/action"
 
 	"github.com/blang/semver"
 	runewidth "github.com/mattn/go-runewidth"
@@ -517,7 +516,8 @@ type File struct {
 	Path string
 	Name string
 }
-//Get all files openned in the current dir
+
+// Get all files openned in the current dir
 // /\ this is an example of a useless comment
 func GetFilesInCurrentDir() (files Files) {
 	files = make(map[string]File)
@@ -538,7 +538,7 @@ func GetFilesInCurrentDir() (files Files) {
 	})
 
 	if err != nil {
-		InfoBar.Message("Error while getting all the file in the current folder")
+		//InfoBar.Message("Error while getting all the file in the current folder")
 	}
 	return files
 }
